@@ -103,6 +103,7 @@ export default function A4LayoutPreview({ croppedImage, photoPreset, onBack }: A
     const sGap = gapPx * scale;
     const sPhotoW = photoW_PX * scale;
     const sPhotoH = photoH_PX * scale;
+    const photoBorderWidth = Math.max(1.5, 2.5 * scale);
 
     // Draw alignment frame (faint grey border representing physical borders of A4)
     ctx.strokeStyle = "rgba(0,0,0,0.06)";
@@ -132,10 +133,30 @@ export default function A4LayoutPreview({ croppedImage, photoPreset, onBack }: A
         // Draw image cutout
         ctx.drawImage(img, posX, posY, sPhotoW, sPhotoH);
 
-        // Draw a hairline grey border around each passport photo for easy cutting guide
-        ctx.strokeStyle = "rgba(0, 0, 0, 0.15)";
-        ctx.lineWidth = Math.max(1, 1 * scale);
-        ctx.strokeRect(posX, posY, sPhotoW, sPhotoH);
+        // Draw visible cutting border around each passport photo.
+        const inset = photoBorderWidth / 2;
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.55)";
+        ctx.lineWidth = photoBorderWidth;
+        ctx.strokeRect(posX + inset, posY + inset, sPhotoW - photoBorderWidth, sPhotoH - photoBorderWidth);
+
+        // Add small corner ticks so borders remain visible on light backgrounds.
+        const tickLength = Math.min(sPhotoW, sPhotoH) * 0.08;
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.75)";
+        ctx.lineWidth = photoBorderWidth;
+        ctx.beginPath();
+        ctx.moveTo(posX + inset, posY + tickLength);
+        ctx.lineTo(posX + inset, posY + inset);
+        ctx.lineTo(posX + tickLength, posY + inset);
+        ctx.moveTo(posX + sPhotoW - tickLength, posY + inset);
+        ctx.lineTo(posX + sPhotoW - inset, posY + inset);
+        ctx.lineTo(posX + sPhotoW - inset, posY + tickLength);
+        ctx.moveTo(posX + inset, posY + sPhotoH - tickLength);
+        ctx.lineTo(posX + inset, posY + sPhotoH - inset);
+        ctx.lineTo(posX + tickLength, posY + sPhotoH - inset);
+        ctx.moveTo(posX + sPhotoW - tickLength, posY + sPhotoH - inset);
+        ctx.lineTo(posX + sPhotoW - inset, posY + sPhotoH - inset);
+        ctx.lineTo(posX + sPhotoW - inset, posY + sPhotoH - tickLength);
+        ctx.stroke();
 
         drawnCount++;
       }
