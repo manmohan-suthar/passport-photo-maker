@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react";
 import Cropper from "react-easy-crop";
-import { ZoomIn, ZoomOut, RotateCw, RefreshCw, Check, Info, ShieldCheck } from "lucide-react";
+import { ZoomIn, ZoomOut, RotateCw, RefreshCw, Check, Info, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { PhotoSizePreset, SIZE_PRESETS } from "../types";
 
 interface CropEditorProps {
@@ -30,8 +30,10 @@ function getRadianAngle(degreeValue: number) {
 async function getCroppedImg(
   imageSrc: string,
   pixelCrop: { x: number; y: number; width: number; height: number },
-  rotation = 0
+  rotation = 0,
+  adjustments = { brightness: 100, contrast: 100, saturation: 100 }
 ): Promise<string> {
+  const maxExportSide = 1800;
   const image = await createImage(imageSrc);
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -57,8 +59,11 @@ async function getCroppedImg(
   ctx.rotate(rotRad);
   ctx.translate(-image.width / 2, -image.height / 2);
 
+  ctx.filter = `brightness(${adjustments.brightness}%) contrast(${adjustments.contrast}%) saturate(${adjustments.saturation}%)`;
+
   // draw original image
   ctx.drawImage(image, 0, 0);
+  ctx.filter = "none";
 
   // extract the cropped region
   const croppedCanvas = document.createElement("canvas");
@@ -68,9 +73,13 @@ async function getCroppedImg(
     throw new Error("No 2d context for cropped canvas");
   }
 
-  // Set cropped canvas sizes to match cropped region size
-  croppedCanvas.width = pixelCrop.width;
-  croppedCanvas.height = pixelCrop.height;
+  const exportScale = Math.min(1, maxExportSide / Math.max(pixelCrop.width, pixelCrop.height));
+  const exportWidth = Math.max(1, Math.round(pixelCrop.width * exportScale));
+  const exportHeight = Math.max(1, Math.round(pixelCrop.height * exportScale));
+
+  // Set cropped canvas sizes to a bounded, print-safe export size.
+  croppedCanvas.width = exportWidth;
+  croppedCanvas.height = exportHeight;
 
   // Draw the cropped image onto the new canvas
   croppedCtx.drawImage(
@@ -81,18 +90,21 @@ async function getCroppedImg(
     pixelCrop.height,
     0,
     0,
-    pixelCrop.width,
-    pixelCrop.height
+    exportWidth,
+    exportHeight
   );
 
   // Return base64 URL
-  return croppedCanvas.toDataURL("image/jpeg", 0.95);
+  return croppedCanvas.toDataURL("image/jpeg", 0.9);
 }
 
 export default function CropEditor({ imageSrc, onCropComplete, onReset }: CropEditorProps) {
   const [selectedPreset, setSelectedPreset] = useState<PhotoSizePreset>(SIZE_PRESETS[0]);
   const [customWidth, setCustomWidth] = useState<number>(40);
   const [customHeight, setCustomHeight] = useState<number>(40);
+  const [brightness, setBrightness] = useState<number>(100);
+  const [contrast, setContrast] = useState<number>(100);
+  const [saturation, setSaturation] = useState<number>(100);
 
   // Cropper states
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -126,7 +138,11 @@ export default function CropEditor({ imageSrc, onCropComplete, onReset }: CropEd
     if (!croppedAreaPixels) return;
     try {
       setCropping(true);
-      const croppedImage = await getCroppedImg(imageSrc, croppedAreaPixels, rotation);
+      const croppedImage = await getCroppedImg(imageSrc, croppedAreaPixels, rotation, {
+        brightness,
+        contrast,
+        saturation,
+      });
       
       const finalPreset = selectedPreset.id === "custom" 
         ? { ...selectedPreset, widthMm: customWidth, heightMm: customHeight }
@@ -146,6 +162,83 @@ export default function CropEditor({ imageSrc, onCropComplete, onReset }: CropEd
     setZoom(1);
     setRotation(0);
   };
+
+  const handleResetEdits = () => {
+    setBrightness(100);
+    setContrast(100);
+    setSaturation(100);
+  };
+
+  const previewFilter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+  const photoEditControls = (
+    <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 h-full" id="photo-edit-controls">
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-bold text-slate-700 flex items-center gap-1.5 text-xs">
+          <SlidersHorizontal className="h-3.5 w-3.5 text-slate-500" />
+          <span>Photo Edit Controls</span>
+        </span>
+        <button
+          id="btn-reset-photo-edits"
+          onClick={handleResetEdits}
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-100 cursor-pointer"
+        >
+          <RefreshCw className="h-3 w-3" />
+          <span>Reset Edits</span>
+        </button>
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-semibold text-slate-600">Brightness</span>
+          <span className="font-mono text-slate-500 font-medium">{brightness}%</span>
+        </div>
+        <input
+          type="range"
+          id="photo-brightness-slider"
+          min="60"
+          max="140"
+          step="1"
+          value={brightness}
+          onChange={(e) => setBrightness(parseInt(e.target.value))}
+          className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-semibold text-slate-600">Contrast</span>
+          <span className="font-mono text-slate-500 font-medium">{contrast}%</span>
+        </div>
+        <input
+          type="range"
+          id="photo-contrast-slider"
+          min="70"
+          max="140"
+          step="1"
+          value={contrast}
+          onChange={(e) => setContrast(parseInt(e.target.value))}
+          className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-semibold text-slate-600">Saturation</span>
+          <span className="font-mono text-slate-500 font-medium">{saturation}%</span>
+        </div>
+        <input
+          type="range"
+          id="photo-saturation-slider"
+          min="60"
+          max="140"
+          step="1"
+          value={saturation}
+          onChange={(e) => setSaturation(parseInt(e.target.value))}
+          className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+        />
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6" id="crop-editor-section">
@@ -228,62 +321,73 @@ export default function CropEditor({ imageSrc, onCropComplete, onReset }: CropEd
           </div>
         )}
 
-        {/* Cropping Canvas Stage */}
-        <div className="relative h-80 w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-800" id="cropper-stage-container">
-          <Cropper
-            image={imageSrc}
-            crop={crop}
-            zoom={zoom}
-            rotation={rotation}
-            aspect={getAspect()}
-            onCropChange={setCrop}
-            onZoomChange={setZoom}
-            onRotationChange={setRotation}
-            onCropComplete={onCropCompleteCallback}
-            showGrid={false}
-          />
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch" id="crop-preview-edit-grid">
+          {/* Cropping Canvas Stage */}
+          <div className="relative h-80 w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-800 xl:col-span-8" id="cropper-stage-container">
+            <Cropper
+              image={imageSrc}
+              crop={crop}
+              zoom={zoom}
+              rotation={rotation}
+              aspect={getAspect()}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onRotationChange={setRotation}
+              onCropComplete={onCropCompleteCallback}
+              showGrid={false}
+              style={{
+                mediaStyle: {
+                  filter: previewFilter,
+                },
+              }}
+            />
 
-          {/* Guidelines Overlay (Passport Standard guides: Head oval & Shoulder guides) */}
-          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-            {/* Draw guideline circles using SVG so they scale responsively in the center of the crop frame */}
-            <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-              {/* Central Oval for Face Guide */}
-              <ellipse
-                cx="50"
-                cy="44"
-                rx="18"
-                ry="24"
-                fill="none"
-                stroke="rgba(59, 130, 246, 0.55)"
-                strokeWidth="0.8"
-                strokeDasharray="2 1"
-              />
-              <line x1="50" y1="20" x2="50" y2="80" stroke="rgba(59, 130, 246, 0.25)" strokeWidth="0.5" strokeDasharray="1 1" />
-              <line x1="20" y1="44" x2="80" y2="44" stroke="rgba(59, 130, 246, 0.25)" strokeWidth="0.5" strokeDasharray="1 1" />
+            {/* Guidelines Overlay (Passport Standard guides: Head oval & Shoulder guides) */}
+            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+              {/* Draw guideline circles using SVG so they scale responsively in the center of the crop frame */}
+              <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                {/* Central Oval for Face Guide */}
+                <ellipse
+                  cx="50"
+                  cy="44"
+                  rx="18"
+                  ry="24"
+                  fill="none"
+                  stroke="rgba(59, 130, 246, 0.55)"
+                  strokeWidth="0.8"
+                  strokeDasharray="2 1"
+                />
+                <line x1="50" y1="20" x2="50" y2="80" stroke="rgba(59, 130, 246, 0.25)" strokeWidth="0.5" strokeDasharray="1 1" />
+                <line x1="20" y1="44" x2="80" y2="44" stroke="rgba(59, 130, 246, 0.25)" strokeWidth="0.5" strokeDasharray="1 1" />
 
-              {/* Shoulder Guides */}
-              <path
-                d="M 22,82 Q 35,68 50,68 Q 65,68 78,82"
-                fill="none"
-                stroke="rgba(59, 130, 246, 0.45)"
-                strokeWidth="0.8"
-                strokeDasharray="2 1"
-              />
+                {/* Shoulder Guides */}
+                <path
+                  d="M 22,82 Q 35,68 50,68 Q 65,68 78,82"
+                  fill="none"
+                  stroke="rgba(59, 130, 246, 0.45)"
+                  strokeWidth="0.8"
+                  strokeDasharray="2 1"
+                />
 
-              {/* Text guides */}
-              <text x="50" y="16" fill="rgba(255, 255, 255, 0.75)" fontSize="3.5" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
-                TOP OF HEAD GUIDE
-              </text>
-              <text x="50" y="64" fill="rgba(255, 255, 255, 0.75)" fontSize="3.5" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
-                BOTTOM OF CHIN
-              </text>
-            </svg>
+                {/* Text guides */}
+                <text x="50" y="16" fill="rgba(255, 255, 255, 0.75)" fontSize="3.5" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                  TOP OF HEAD GUIDE
+                </text>
+                <text x="50" y="64" fill="rgba(255, 255, 255, 0.75)" fontSize="3.5" fontWeight="bold" textAnchor="middle" fontFamily="sans-serif">
+                  BOTTOM OF CHIN
+                </text>
+              </svg>
+            </div>
+
+            {/* Compass indicators / instruction overlay */}
+            <div className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-sm px-2.5 py-1 rounded-md text-[10px] text-white flex items-center gap-1">
+              <Info className="h-3 w-3 text-blue-400 shrink-0" />
+              <span>Align head within the blue oval</span>
+            </div>
           </div>
 
-          {/* Compass indicators / instruction overlay */}
-          <div className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-sm px-2.5 py-1 rounded-md text-[10px] text-white flex items-center gap-1">
-            <Info className="h-3 w-3 text-blue-400 shrink-0" />
-            <span>Align head within the blue oval</span>
+          <div className="xl:col-span-4">
+            {photoEditControls}
           </div>
         </div>
 

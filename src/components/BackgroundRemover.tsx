@@ -319,7 +319,11 @@ export default function BackgroundRemover({ imageSrc, onComplete, onBack }: Back
 
     } catch (err: any) {
       console.warn("ClearBackdrop background removal failed, falling back to local threshold detector:", err);
-      setErrorMessage("ClearBackdrop could not remove this background right now. Using the local remover instead.");
+      setErrorMessage(
+        err?.message
+          ? `ClearBackdrop could not remove this background: ${err.message}. Using the local remover instead.`
+          : "ClearBackdrop could not remove this background right now. Using the local remover instead.",
+      );
       setIsUsingAiModel(false);
       runLocalFallback();
     }

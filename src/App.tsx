@@ -17,6 +17,7 @@ export default function App() {
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [photoPreset, setPhotoPreset] = useState<PhotoSizePreset>(SIZE_PRESETS[0]);
   const [bgColor, setBgColor] = useState<string>("#ffffff");
+  const [showUploadEditor, setShowUploadEditor] = useState<boolean>(false);
 
   // Step Navigations
   const handleStepChange = (stepId: StepId) => {
@@ -28,6 +29,7 @@ export default function App() {
     setUploadedImage(dataUrl);
     setCroppedImage(null);
     setProcessedImage(null);
+    setShowUploadEditor(false);
     setCurrentStep("crop"); // Move to crop step as soon as image is selected
   };
 
@@ -52,6 +54,7 @@ export default function App() {
     setUploadedImage(null);
     setCroppedImage(null);
     setProcessedImage(null);
+    setShowUploadEditor(false);
     setCurrentStep("upload");
   };
 
@@ -90,7 +93,7 @@ export default function App() {
       <main className="flex-grow mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
         
         {/* Landing Hero Section: Only visible when no photo has been selected and we are on the first step */}
-        {currentStep === "upload" && !uploadedImage && (
+        {currentStep === "upload" && !uploadedImage && !showUploadEditor && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center py-4 lg:py-10" id="hero-banner">
             
             {/* Hero Left Info */}
@@ -113,8 +116,8 @@ export default function App() {
                 <button
                   id="hero-btn-upload"
                   onClick={() => {
-                    const fileInput = document.getElementById("passport-file-input");
-                    fileInput?.click();
+                    setShowUploadEditor(true);
+                    setCurrentStep("upload");
                   }}
                   className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl shadow-lg shadow-blue-100 hover:shadow-xl transition-all active:scale-[0.98] cursor-pointer"
                 >
@@ -191,7 +194,7 @@ export default function App() {
         )}
 
         {/* Primary Editor Workspace Area */}
-        {uploadedImage && (
+        {(uploadedImage || showUploadEditor) && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start" id="primary-editor-workspace">
             
             {/* Left Column: Active Step Controls (7 cols on desktop) */}
