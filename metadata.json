@@ -1,0 +1,6 @@
+{
+  "name": "Passport Photo Maker",
+  "description": "Create professional passport photos in seconds. Upload, crop, automatically remove background, and generate high-quality, print-ready A4 sheets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
