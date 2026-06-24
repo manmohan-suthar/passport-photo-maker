@@ -52,19 +52,7 @@ export default function UploadPhoto({ onImageSelected, onSampleLoaded }: UploadP
         return;
       }
 
-      // Check dimensions (Must be at least 400x400)
-      const img = new Image();
-      img.onload = () => {
-        if (img.width < 400 || img.height < 400) {
-          setError(`The uploaded image is too small (${img.width}x${img.height}px). For a clear passport print, please upload an image of at least 400x400 pixels.`);
-        } else {
-          onImageSelected(dataUrl);
-        }
-      };
-      img.onerror = () => {
-        setError("Failed to load image structure. File might be corrupted.");
-      };
-      img.src = dataUrl;
+      onImageSelected(dataUrl);
     };
     reader.onerror = () => {
       setError("An error occurred while reading the file.");
@@ -168,7 +156,7 @@ export default function UploadPhoto({ onImageSelected, onSampleLoaded }: UploadP
             Drag and drop your photo here, or <span className="text-blue-600 hover:text-blue-700">browse file</span>
           </p>
           <p className="text-xs text-slate-400 mt-1.5 text-center">Supports JPG, PNG, or WEBP (Max 10MB)</p>
-          <p className="text-[10px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full mt-3">Minimum size: 400 x 400 px</p>
+          <p className="text-[10px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full mt-3">Any image size accepted</p>
         </div>
 
         {/* Error State */}
